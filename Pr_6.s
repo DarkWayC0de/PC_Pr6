@@ -3,9 +3,8 @@
 Titulo:             .asciiz "Práctica 6 de Principios de computadores. Potencia."
 Modo:               .asciiz "\nIntrozuca 0 para hacerlo iterativo, otro número para recursivo:\t"
 Exponente:          .asciiz "Introduzca el exponente:\t"
-Base:               .asciiz "\nIntroduzca la base:\t"
+Base:               .asciiz "Introduzca la base:\t"
 Resultado:          .asciiz "El resultado es:\t"
-Indeterminacion:    .asciiz "La operación no puede realizarse, es una indeterminación\n"
 
                  .text
 
@@ -59,9 +58,6 @@ ite:
     jal potenciaIT
 
 terminar:
-    li.d $f2,-1.0
-    c.eq.d $f2,$f0
-    bc1t mainindeter
 
     li $v0,4
     la $a0,Resultado
@@ -70,14 +66,7 @@ terminar:
     li $v0,3
     mov.d $f12,$f0
     syscall
-    j fin;
 
-mainindeter:
-    li $v0,4
-    la $a0,Indeterminacion
-    syscall
-
-fin:
     lw $ra, 24($sp)
     add $sp,$sp,-32 #restauramos la pila
     jr $ra
@@ -175,14 +164,4 @@ finRC:
 
 Comprobar:
     li.d $f0,1.0
-    mtc1 $zero,$f4
-    cvt.d.w $f4,$f4
-    c.eq.d $f4,$f12
-    bc1t indeterminacion            #Comprobamos si es indeterminacion
-    j fincomprobar
-
-indeterminacion:                    #Si es indeterminacion avisamos y salimos
-    neg.d $f0,$f0
-
-fincomprobar:
     jr $ra
