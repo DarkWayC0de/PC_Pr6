@@ -1,11 +1,11 @@
                  .data
 
-Titulo:          .asciiz "Práctica 6 de Principios de computadores. Potencia."
-Base:            .asciiz "\nIntroduzca la base:\t"
-Exponente:       .asciiz "Introduzca el exponente:\t"
-Modo:            .asciiz "Introzuca 0 para hacerlo iterativo, otro número para recursivo:\t"
-Resultado:       .asciiz "El resultado es:\t"
-Indeterminacion: .asciiz "La operación no puede realizarse, es una indeterminación\n"
+Titulo:             .asciiz "Práctica 6 de Principios de computadores. Potencia."
+Modo:               .asciiz "\nIntrozuca 0 para hacerlo iterativo, otro número para recursivo:\t"
+Exponente:          .asciiz "Introduzca el exponente:\t"
+Base:               .asciiz "\nIntroduzca la base:\t"
+Resultado:          .asciiz "El resultado es:\t"
+Indeterminacion:    .asciiz "La operación no puede realizarse, es una indeterminación\n"
 
                  .text
 
@@ -18,11 +18,23 @@ Indeterminacion: .asciiz "La operación no puede realizarse, es una indeterminac
 # $f16       -  Un 1 (Para poder dividir)
 
 main:
+    add $sp,$sp,-32                 #Reservamos 1 doble como primer argumento,3 argumentos simples,relleno para multiplo
+                                    #de 8 $ra y relleno para  multiplo de 8
+    sw $ra, 24($sp)                 #Guardamos ra de main
 
     li $v0,4
     la $a0,Titulo
     syscall
 
+    li $v0,4
+    la $a0,Modo
+    syscall
+
+    li $v0,5
+    syscall
+    move $t0,$v0
+
+    li $v0,4
     la $a0,Base
     syscall
 
@@ -38,13 +50,19 @@ main:
     syscall
     move $a0,$v0
 
-    add $sp,$sp,-16                 #Reservamos 4 words en pila para los argumentos
-    jal Potencia
+    beq $t0,$zero,ite
 
+    jal potenciaRC
+    j terminar
 
-Imprimir:
+ite:
+    jal potenciaIT
 
-    add $sp,$sp,16                  #Restauramos puntero de pila
+terminar:
+    li.d $f2,-1.0
+    c.eq.d $f2,$f0
+    bc1t mainindeter
+
     li $v0,4
     la $a0,Resultado
     syscall
@@ -52,64 +70,58 @@ Imprimir:
     li $v0,3
     mov.d $f12,$f0
     syscall
+    j fin;
 
-fin:                                #Salida del sistema
-    li $v0,10
-    syscall
-
-
-# ······························--- SUBRUTINA DE POTENCIA ---···································
-
-Potencia:
-
-    beq $a0,$zero,Comprobar
-
-    sw $a0,12($sp)                  #Guardamos $a0
-
+mainindeter:
     li $v0,4
-    la $a0,Modo
+    la $a0,Indeterminacion
     syscall
 
-    li $v0,5
-    syscall
-    move $t0,$v0
-
-    lw $a0,12($sp)                  #Recuperamos $a0
-
-    bgt $a0,$zero,nonegativo
-                                    #Caso de que sea negativo
-    add $sp,$sp,-8
-    sw $ra,4($sp)                   #Guardamos $ra (al main) en pila
-
-    sub $a0,$zero,$a0               #Pasamos exponente a positivo
-    bne $t0,$zero,rec               #Saltamos a recursivo si fue la opcion eleginda
-
-    jal iterativo                   #si no saltamos a iterativo
-    j deshacercambio
-
-rec:
-    jal recursivo                   #Si no a recursivo
-
-deshacercambio:                     #Deshacemos cambio
-
-    li.d $f16,1.0
-    div.d $f0,$f16,$f0              #Calculamos resultado final
-
-
-    lw $ra,4($sp)
-    addu $sp,$sp,8                  #Volvemos al main
+fin:
+    lw $ra, 24($sp)
+    add $sp,$sp,-32 #restauramos la pila
     jr $ra
 
-nonegativo:                         #Si no es negativo calculamos el resultado normal
 
-    beq $t0,$zero,iterativo
-    j recursivo
+# ······························--- SUBRUTINAS DE POTENCIA ---···································
+# ...................................ITERATIVA...................................................
+potenciaIT:
+    add $sp,$sp,-32                 #Reservamos 1 doble como primer argumento,3 argumentos simples,relleno para multiplo
+                                    #de 8 $ra y relleno para  multiplo de 8
+    sw $ra, 24($sp)                 #guaramos en pila $ra
+    s.d $f12, 32($sp)               #guardamos los argumentos
+    sw $a0,40($sp)
+
+    beq $a0,$zero,exponentezeroIT
+
+    bgt $a0,$zero,nonegativoIT
+                                    #Caso de que sea negativo
+    sub $a0,$zero,$a0               #Pasamos exponente a positivo
+
+    jal calculoIT
+
+    li.d $f16,1.0
+    div.d $f0,$f16,$f0
+
+    j finpotenciaIT
+nonegativoIT:
+
+    jal calculoIT
 
 
-#·····························································································
+    j finpotenciaIT
+exponentezeroIT:
 
-iterativo:
+    jal Comprobar
 
+finpotenciaIT:
+    lw $ra,24($sp)                  #restauramos $ra
+    addu $sp,$sp,32                 #restauramos la pila
+    jr $ra                          #volvemos al main
+
+
+
+calculoIT:
    move $t0,$a0                     #Iniciamos contador a $a0
    sub  $t0,$t0,1                   #Restamos uno para iterar hasta $zero
    mov.d $f0,$f12                   #Iniciamos resultado a la base
@@ -123,44 +135,54 @@ bucle:
 salir:
     jr $ra                          #Volvemos al main o a deshacer cambio
 
-#······························································································
+#·········································RECURSIVA····················································
+potenciaRC:
+    add $sp,$sp,-32                 #Reservamos 1 doble como primer argumento,3 argumentos simples,relleno para multiplo
+                                    #de 8 $ra y relleno para  multiplo de 8
+    sw $ra, 24($sp)                 #guaramos en pila $ra
+    s.d $f12, 32($sp)               #guardamos los argumentos
+    sw $a0,40($sp)
 
-recursivo:
+    beq $a0,$zero,exponentezeroRC
+    bgt $a0,$zero,nonegativoRC
 
-    beq $a0,0,uno                   #Caso base
-    add $sp,$sp,8                   #Reservamos espacio para $ra
-    sw $ra,4($sp)                   #Guardamos
-    sub $a0,$a0,1                   #A la siguiente llamada le debe llegar $a0-1
+    sub $a0,$zero,$a0               #Pasamos exponente a positivo
 
-    jal recursivo                   #Llamada recursiva
+    jal potenciaRC
 
-    lw $ra,4($sp)                   #Restauramos $ra
-    mul.d $f0,$f0,$f12              #Operacion
-    add $sp,$sp,-8                  #Restauramos $ra
-    jr $ra
 
-uno:
-    li.d $f0,1.0                    #Caso base
+    li.d $f16,1.0
+    div.d $f0,$f16,$f0              #Calculamos resultado correcto
+    j finRC
+nonegativoRC:
+        sub $a0,$a0,1                   #A la siguiente llamada le debe llegar $a0-1
+
+        jal potenciaRC                   #Llamada recursiva
+
+        mul.d $f0,$f0,$f12
+        j finRC
+
+exponentezeroRC:
+    jal Comprobar
+
+finRC:
+    lw $ra,24($sp)                  #restauramos ra
+    addu $sp,$sp,32                 #restauramos pila
     jr $ra
 
 
 #··································---SUBRUTINAS---·······································
 
 Comprobar:
-
-    mtc1 $a0,$f4
+    li.d $f0,1.0
+    mtc1 $zero,$f4
     cvt.d.w $f4,$f4
     c.eq.d $f4,$f12
     bc1t indeterminacion            #Comprobamos si es indeterminacion
-
-    li.d $f0,1.0                    #Si no ya sabemos que n^0 = 1 y salimos
-    j Imprimir
-
+    j fincomprobar
 
 indeterminacion:                    #Si es indeterminacion avisamos y salimos
+    neg.d $f0,$f0
 
-    li $v0,4
-    la $a0,Indeterminacion
-    syscall
-
-    j fin
+fincomprobar:
+    jr $ra
